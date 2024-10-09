@@ -22,8 +22,8 @@ void setup() {
 }
 
 void loop() {
-  command[0] = map(PS4.LStickY(), -128, 127, 0, 255);
-  command[1] = map(PS4.RStickX(), -128, 127, 0, 255);
+  command[0] = map(PS4.RStickX(), -128, 127, 0, 255);
+  command[1] = map(PS4.RStickY(), -128, 127, 0, 255);
   
   // Send both commands to the slave
   esp_now_send(slave.peer_addr, command, sizeof(command)); // Send command array to the slave
@@ -32,8 +32,8 @@ void loop() {
 
 // Callback when data is sent from Master to Slave
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("Y-axis: ");
-  Serial.print(command[0]); // Print the Y-axis command for debugging
-  Serial.print("\t\tX-axis: ");
-  Serial.println(command[1]); // Print the Z-axis command for debugging
+  Serial.print("X-axis: ");
+  Serial.print(command[0]);
+  Serial.print("\tY-axis: ");
+  Serial.println(command[1]);
 }
