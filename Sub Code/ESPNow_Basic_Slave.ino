@@ -109,10 +109,10 @@ int* Stop() {
 
 int MotorA(int x, int y, int x2, double theta) {
   int resultant_A = y + x + x2; 
-  if (-255 <= x2 && x2 < 0) {
+  if (-1024 <= x2 && x2 < 0) {
     digitalWrite(dirPinA1, LOW);
     digitalWrite(dirPinA2, HIGH);
-  } else if (0 <= x2 && x2 <= 255) {
+  } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinA1, HIGH);
     digitalWrite(dirPinA2, LOW);
   } else if (-45 < theta && theta < 135) { // Forward for -45 < theta < 135
@@ -131,10 +131,10 @@ int MotorA(int x, int y, int x2, double theta) {
 
 int MotorB(int x, int y, int x2, double theta) {
   int resultant_B = y - x - x2;
-  if (-255 <= x2 && x2 < 0) {
+  if (-1024 <= x2 && x2 < 0) {
     digitalWrite(dirPinB1, HIGH);
     digitalWrite(dirPinB2, LOW);
-  } else if (0 < x2 && x2 <= 255) {
+  } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinB1, LOW);
     digitalWrite(dirPinB2, HIGH);
   } else if (-135 > theta && theta > -180 || 180 >= theta && theta > 45) { // Forward for -135 < theta < 45
@@ -153,10 +153,10 @@ int MotorB(int x, int y, int x2, double theta) {
 
 int MotorC(int x, int y, int x2, double theta) {
   int resultant_C = y + x - x2;
-  if (-255 <= x2 && x2 < 0) {
+  if (-1024 <= x2 && x2 < 0) {
     digitalWrite(dirPinC1, HIGH);
     digitalWrite(dirPinC2, LOW);
-  } else if (0 < x2 && x2 <= 255) {
+  } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinC1, LOW);
     digitalWrite(dirPinC2, HIGH);
   } else if (-45 < theta && theta < 135) { // Forward for -45 < theta < 135
@@ -175,10 +175,10 @@ int MotorC(int x, int y, int x2, double theta) {
 
 int MotorD(int x, int y, int x2, double theta) {
   int resultant_D = y - x + x2;
-  if (-255 <= x2 && x2 < 0) {
+  if (-1024 <= x2 && x2 < 0) {
     digitalWrite(dirPinD1, LOW);
     digitalWrite(dirPinD2, HIGH);
-  } else if (0 < x2 && x2 <= 255) {
+  } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinD1, HIGH);
     digitalWrite(dirPinD2, LOW);
   } else if (-135 > theta && theta > -180 || 180 >= theta && theta > 45) { // Forward for -135 < theta < 45
@@ -210,7 +210,7 @@ void loop() {
     vel_X = map(theta, -90, 0, 0, RStickX);
     vel_Y = map(theta, -90, 0, RStickY, 0);
   }
-
+  
   if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0)) { // if controller detects input
     vel_A = MotorA(vel_X, vel_Y, vel_X2, theta);
     vel_B = MotorB(vel_X, vel_Y, vel_X2, theta);
@@ -251,19 +251,19 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   if (118 <= command[0] && command[0] <= 138) {
     RStickX = 0;
   } else {
-    RStickX = map(command[0], 0, 255, -255, 255);
+    RStickX = map(command[0], 0, 255, -1024, 1024);
   }
 
   if (118 <= command[1] && command[1] <= 138) {
     RStickY = 0;
   } else {
-    RStickY = map(command[1], 0, 255, -255, 255);
+    RStickY = map(command[1], 0, 255, -1024, 1024);
   }
 
   if (118 <= command[2] && command[2] <= 138) {
     vel_X2 = 0;
   } else {
-    vel_X2 = map(command[2], 0, 255, -255, 255);
+    vel_X2 = map(command[2], 0, 255, -1024, 1024);
   }
 
   //Theta calculation
