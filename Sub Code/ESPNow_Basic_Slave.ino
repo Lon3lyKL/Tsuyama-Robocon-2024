@@ -1,20 +1,29 @@
 #include <esp_now.h>
 #include <WiFi.h>
-#include "driver/ledc.h"
+#include <ESP32Servo.h>
 
 #define CHANNEL 1
 
 esp_now_peer_info_t master;  // Global copy of master
 
+Servo liftingServo;
+Servo primingServo;
+Servo flywheel;
+
+// PWM pins for Servo Motors
+const int pwmPinServoPrime = 32;
+const int pwmPinServoLift = 33;
+const int pwmPinflywheel = 15;
+
 // Motor control pins for Motor A
 const int dirPinA1 = 4;  // IN1 for Motor A direction control
 const int dirPinA2 = 2;  // IN2 for Motor A direction control
-const int pwmPinA = 15;  // ENA pin (controls Motor A speed)
+const int pwmPinA = 27;  // ENA pin (controls Motor A speed)
 
 // Motor control pins for Motor B
-const int dirPinB1 = 18;  // IN1 for Motor B direction control
-const int dirPinB2 = 5;   // IN2 for Motor B direction control
-const int pwmPinB = 19;   // ENB pin (controls Motor B speed)
+const int dirPinB1 = 21;  // IN1 for Motor B direction control
+const int dirPinB2 = 19;   // IN2 for Motor B direction control
+const int pwmPinB = 26;   // ENB pin (controls Motor B speed)
 
 // Motor control pins for Motor C
 const int dirPinC1 = 12;  // IN1 for Motor C direction control
@@ -22,10 +31,9 @@ const int dirPinC2 = 14;  // IN2 for Motor C direction control
 const int pwmPinC = 13;   // ENA pin (controls Motor C speed)
 
 // Motor control pins for Motor D
-const int dirPinD1 = 27;  // IN1 for Motor D direction control
-const int dirPinD2 = 26;  // IN2 for Motor D direction control
+const int dirPinD1 = 5;  // IN1 for Motor D direction control
+const int dirPinD2 = 18;  // IN2 for Motor D direction control
 const int pwmPinD = 25;   // ENB pin (controls Motor D speed)
-
 
 int motorSpeedA = 0;
 int motorSpeedB = 0;
@@ -34,6 +42,19 @@ int motorSpeedD = 0;
 
 int RStickX = 0;
 int RStickY = 0;
+int L2 = 0;
+int R1 = 0;
+int R2 = 0;
+int Cross = 0;
+int Circle = 0;
+int Triangle = 0;
+int Square = 0;
+int Left = 0;
+int Right = 0;
+
+String lift_status = "OFF";
+String prime_status = "OFF";
+String flywheel_status = "OFF";
 
 int vel_X = 0;
 int vel_Y = 0;
@@ -42,14 +63,22 @@ int vel_A = 0;
 int vel_B = 0;
 int vel_C = 0;
 int vel_D = 0;
+int flywheel_vel = 0;
 
 double theta = 0;
+
 uint8_t command[3];
 
 uint8_t masterAddress[] = { 0xC8, 0x2E, 0x18, 0xEF, 0x4E, 0xE0 };  // MAC address of the master
 
 void setup() {
   Serial.begin(115200);
+
+  primingServo.attach(pwmPinServoPrime, 500, 2500);
+  liftingServo.attach(pwmPinServoLift, 500, 2500);
+  flywheel.attach(pwmPinflywheel, 1000, 2000);
+  flywheel.write(0);
+  delay(5000);
 
   pinMode(dirPinA1, OUTPUT);
   pinMode(dirPinA2, OUTPUT);
@@ -60,14 +89,13 @@ void setup() {
   pinMode(dirPinD1, OUTPUT);
   pinMode(dirPinD2, OUTPUT);
 
-  // Set up PWM channels for speed control
-  ledcSetup(0, 5000, 8);      // Channel 0 for Motor A
-  ledcAttachPin(pwmPinA, 0);  // Attach Motor A's ENA to PWM channel 0
-  ledcSetup(1, 5000, 8);      // Channel 1 for Motor B
-  ledcAttachPin(pwmPinB, 1);  // Attach Motor B's ENB to PWM channel 1
-  ledcSetup(2, 5000, 8);      // Channel 1 for Motor C
-  ledcAttachPin(pwmPinC, 2);  // Attach Motor C's ENA to PWM channel 2
-  ledcSetup(3, 5000, 8);      // Channel 1 for Motor D
+  // PWM Channels 0 and 1 for Servo Motors
+  // PWM channels 2 and 3 for DC Motor speed control
+  ledcSetup(3, 5000, 8);      // Set up Channel 2
+
+  ledcAttachPin(pwmPinA, 3);  // Attach Motor A's ENA to PWM channel 0
+  ledcAttachPin(pwmPinB, 3);  // Attach Motor B's ENB to PWM channel 1
+  ledcAttachPin(pwmPinC, 3);  // Attach Motor C's ENA to PWM channel 2
   ledcAttachPin(pwmPinD, 3);  // Attach Motor D's ENB to PWM channel 3
 
   // Initialize WiFi and ESP-NOW
@@ -131,6 +159,7 @@ int MotorA(int x, int y, int x2, double theta) {
 
 int MotorB(int x, int y, int x2, double theta) {
   int resultant_B = y - x - x2;
+  
   if (-1024 <= x2 && x2 < 0) {
     digitalWrite(dirPinB1, HIGH);
     digitalWrite(dirPinB2, LOW);
@@ -211,11 +240,12 @@ void loop() {
     vel_Y = map(theta, -90, 0, RStickY, 0);
   }
   
-  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0)) { // if controller detects input
+  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0)) { // detect joystick input
     vel_A = MotorA(vel_X, vel_Y, vel_X2, theta);
     vel_B = MotorB(vel_X, vel_Y, vel_X2, theta);
     vel_C = MotorC(vel_X, vel_Y, vel_X2, theta);
     vel_D = MotorD(vel_X, vel_Y, vel_X2, theta);
+    
   } else { // Stop when controller has no input
     int *arr = Stop();
     vel_A = arr[0];
@@ -224,13 +254,56 @@ void loop() {
     vel_D = arr[3];
   }
 
+  if (L2) { // If L2 pressed, servo goes to 180
+    liftingServo.writeMicroseconds(map(180, 0, 300, 500, 2500));
+    lift_status = "ON";
+  } else { // If L2 released, servo goes to 0
+    liftingServo.writeMicroseconds(500);
+    lift_status = "OFF";
+  }
+  if (R1) { // If R1 pressed, servo goes to 90
+    primingServo.writeMicroseconds(map(90, 0, 300, 500, 2500));
+    prime_status = "ON";
+  } else { // If R1 released, servo goes to 0
+    primingServo.writeMicroseconds(500);
+    prime_status = "OFF";
+  }
+  static bool leftPressed = false;
+  static bool rightPressed = false;
+  if (Cross) flywheel_vel = 72;
+  if (Circle) flywheel_vel = 108;
+  if (Triangle) flywheel_vel = 144;
+  if (Square) flywheel_vel = 180;
+  if (Left) {
+    if (!leftPressed) {
+        flywheel_vel -= 9;
+        leftPressed = true;
+    }
+  } else leftPressed = false;
+  
+  if (Right) {
+    if (!rightPressed) {
+        flywheel_vel += 9;
+        rightPressed = true; 
+    }
+  } else rightPressed = false; 
+
+  if (R2) {
+    flywheel.write(flywheel_vel);
+    flywheel_status = "ON";
+  } else {
+    flywheel.write(0);
+    flywheel_status = "OFF";
+  }
+
   /*Serial.print("X-axis: ");
   Serial.print(RStickX);
   Serial.print("\tY-axis: ");
-  Serial.print(RStickY);*/
+  Serial.print(RStickY);
   Serial.print("theta: ");
-  Serial.print(theta);
-  Serial.print("\tvel_A: ");
+  Serial.print(theta);*/
+  
+  Serial.print("vel_A: ");
   Serial.print(vel_A);
   Serial.print("\tvel_B: ");
   Serial.print(vel_B);
@@ -239,8 +312,15 @@ void loop() {
   Serial.print("\tvel_D: ");
   Serial.print(vel_D);
   Serial.print("\tvel_X2: ");
-  Serial.println(vel_X2);
-  
+  Serial.print(vel_X2);
+  Serial.print("\tLift:  ");
+  Serial.print(lift_status);
+  Serial.print("\tPrime: ");
+  Serial.print(prime_status);
+  Serial.print("\tFlywheel:  ");
+  Serial.print(flywheel_status);
+  Serial.print("\tflywheel_vel: ");
+  Serial.println(flywheel_vel);
 }
 
 // Callback when data is received from Master
@@ -248,6 +328,16 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   command[0] = data[0];  // Right Stick X
   command[1] = data[1];  // Right Stick Y
   command[2] = data[2]; // Left Stick X
+  L2 = data[3];
+  R1 = data[4]; 
+  R2 = data[5]; 
+  Cross = data[6];
+  Circle = data[7];
+  Triangle = data[8];
+  Square = data[9];
+  Left = data[10];
+  Right = data[11];
+
   if (118 <= command[0] && command[0] <= 138) {
     RStickX = 0;
   } else {
@@ -282,11 +372,4 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       theta -= 180;  // Third quadrant (X negative, Y negative)
     }
   }
-  /*
-  Serial.print("X-axis: ");
-  Serial.print(RStickX);
-  Serial.print(" Y-axis: ");
-  Serial.print(RStickY);
-  Serial.print(" Theta: ");
-  Serial.print(theta);*/
 }

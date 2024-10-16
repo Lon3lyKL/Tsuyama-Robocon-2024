@@ -6,7 +6,7 @@
 
 esp_now_peer_info_t slave;  // Global copy of slave
 
-uint8_t command[3]; 
+uint8_t command[12]; 
 uint8_t slaveAddress[] = {0xFC, 0xB4, 0x67, 0xF1, 0xDF, 0xE8}; // MAC address of the slave
 
 void setup() {
@@ -31,6 +31,15 @@ void loop() {
     command[0] = map(PS4.RStickX(), -128, 127, 0, 255);
     command[1] = map(PS4.RStickY(), -128, 127, 0, 255);
     command[2] = map(PS4.LStickX(), -128, 127, 0, 255);
+    command[3] = PS4.L2();
+    command[4] = PS4.R1();
+    command[5] = PS4.R2();
+    command[6] = PS4.Cross();
+    command[7] = PS4.Circle();
+    command[8] = PS4.Triangle();
+    command[9] = PS4.Square();
+    command[10] = PS4.Left();
+    command[11] = PS4.Right();
     
     // Send both commands to the slave
     esp_now_send(slave.peer_addr, command, sizeof(command)); // Send command array to the slave
@@ -39,10 +48,28 @@ void loop() {
 
 // Callback when data is sent from Master to Slave
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("X-axis: ");
+  Serial.print("X: ");
   Serial.print(command[0]);
-  Serial.print("\tY-axis: ");
+  Serial.print("\tY: ");
   Serial.print(command[1]);
-  Serial.print("\tX-axis 2: ");
-  Serial.println(command[2]);
+  Serial.print("\tX2: ");
+  Serial.print(command[2]);
+  Serial.print("\tL2: ");
+  Serial.print(command[3]);
+  Serial.print("\tR1: ");
+  Serial.print(command[4]);
+  Serial.print("\tR2: ");
+  Serial.print(command[5]);
+  Serial.print("\t✕: ");
+  Serial.print(command[6]);
+  Serial.print("\t◯: ");
+  Serial.print(command[7]);
+  Serial.print("\t△: ");
+  Serial.print(command[8]);
+  Serial.print("\t▢: ");
+  Serial.print(command[9]);
+  Serial.print("\t◀: ");
+  Serial.print(command[10]);
+  Serial.print("\t▶: ");
+  Serial.println(command[11]);
 }
