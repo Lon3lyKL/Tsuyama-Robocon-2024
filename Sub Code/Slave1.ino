@@ -73,7 +73,7 @@ double theta = 0;
 
 uint8_t command[3];
 
-uint8_t masterAddress[] = { 0xC8, 0x2E, 0x18, 0xEF, 0x4E, 0xE0 };  // MAC address of the master
+uint8_t masterAddress[] = { 0x08, 0x3A, 0xF2, 0xB4, 0x65, 0x80 };  // MAC address of the master
 
 void setup() {
   Serial.begin(115200);
@@ -286,20 +286,20 @@ void loop() {
   }
   static bool leftPressed = false;
   static bool rightPressed = false;
-  if (Cross) flywheel_vel = 72;
-  if (Circle) flywheel_vel = 108;
-  if (Triangle) flywheel_vel = 144;
-  if (Square) flywheel_vel = 180;
+  if (Cross) flywheel_vel = 10;
+  if (Circle) flywheel_vel = 20;
+  if (Triangle) flywheel_vel = 30;
+  if (Square) flywheel_vel = 40;
   if (Left) {
     if (!leftPressed) {
-        flywheel_vel -= 9;
+        flywheel_vel -= 1;
         leftPressed = true;
     }
   } else leftPressed = false;
   
   if (Right) {
     if (!rightPressed) {
-        flywheel_vel += 9;
+        flywheel_vel += 1;
         rightPressed = true; 
     }
   } else rightPressed = false; 

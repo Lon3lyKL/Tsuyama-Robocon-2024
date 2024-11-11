@@ -4,13 +4,13 @@
 
 #define CHANNEL 1
 
-esp_now_peer_info_t slave1;  // Global copy of slave
+esp_now_peer_info_t slave1;  
 esp_now_peer_info_t slave2;
 
 uint8_t command[13]; 
 uint8_t rcvdata[2];
 uint8_t slaveAddress1[] = {0xD8, 0x13, 0x2A, 0x2F, 0x1A, 0xDC};
-uint8_t slaveAddress2[] = {0xD8, 0x13, 0x2A, 0x30, 0x9A, 0xC0}; 
+uint8_t slaveAddress2[] = {0x9C, 0x9C, 0x1F, 0xF7, 0x95, 0xDC}; 
 
 void setup() {
   Serial.begin(115200);
@@ -19,20 +19,20 @@ void setup() {
     Serial.println("Waiting for PS4 controller to connect...");
     delay(1000);
   }
-  //PS4.begin("C8:2E:18:EF:4E:E2");
-  WiFi.mode(WIFI_STA);                   // Set device in STA mode
-  esp_now_init();                        // Init ESPNow protocol
-  esp_now_register_send_cb(OnDataSent);  // Get the status of transmitted packet
-  esp_now_register_recv_cb(OnDataRecv);  // Register callback for data reception
+
+  WiFi.mode(WIFI_STA);                   
+  esp_now_init();                        
+  esp_now_register_send_cb(OnDataSent);  
+  esp_now_register_recv_cb(OnDataRecv); 
 
   memcpy(slave1.peer_addr, slaveAddress1, 6);
-  slave1.channel = CHANNEL;  // Pick a channel
-  slave1.encrypt = 0;        // No encryption
+  slave1.channel = CHANNEL;  
+  slave1.encrypt = 0;       
   esp_now_add_peer(&slave1);
 
   memcpy(slave2.peer_addr, slaveAddress2, 6);
-  slave2.channel = CHANNEL;  // Pick a channel
-  slave2.encrypt = 0;        // No encryption
+  slave2.channel = CHANNEL; 
+  slave2.encrypt = 0;       
   esp_now_add_peer(&slave2);
 }
 
@@ -54,9 +54,9 @@ void loop() {
     
     esp_now_send(slave1.peer_addr, command, sizeof(command)); // Send command array to the slave
     //esp_now_send(slave2.peer_addr, command, sizeof(command));
-    Serial.print("rcvdata[0]: ");
+    Serial.print("RPM: ");
     Serial.print(rcvdata[0]);
-    Serial.print("\trcvdata[1]: ");
+    Serial.print("\tColour: ");
     Serial.print(rcvdata[1]);
     Serial.print("\t\tX: ");
     Serial.print(command[0]);
