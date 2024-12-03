@@ -11,30 +11,33 @@ Servo primingServo;
 Servo flywheel;
 Servo intake;
 
+
 // PWM pins for Servo Motors
 const int pwmPinServoPrime = 32;
 const int pwmPinServoLift = 33;
 const int pwmPinflywheel = 15;
 const int pwmPinintake = 22;
 
+// Motor Driver 1
 // Motor control pins for Motor A
-const int dirPinA1 = 4;  // IN1 for Motor A direction control
-const int dirPinA2 = 2;  // IN2 for Motor A direction control
-const int pwmPinA = 27;  // ENA pin (controls Motor A speed)
+const int dirPinA1 = 4;  // IN3 for Motor A direction control
+const int dirPinA2 = 2;  // IN4 for Motor A direction control
+const int pwmPinA = 27;  // ENB pin (controls Motor A speed)
 
 // Motor control pins for Motor B
 const int dirPinB1 = 21;  // IN1 for Motor B direction control
 const int dirPinB2 = 19;   // IN2 for Motor B direction control
-const int pwmPinB = 26;   // ENB pin (controls Motor B speed)
+const int pwmPinB = 26;   // ENA pin (controls Motor B speed)
 
+// Motor Driver 2
 // Motor control pins for Motor C
 const int dirPinC1 = 12;  // IN1 for Motor C direction control
 const int dirPinC2 = 14;  // IN2 for Motor C direction control
 const int pwmPinC = 13;   // ENA pin (controls Motor C speed)
 
 // Motor control pins for Motor D
-const int dirPinD1 = 5;  // IN1 for Motor D direction control
-const int dirPinD2 = 18;  // IN2 for Motor D direction control
+const int dirPinD1 = 5;  // IN3 for Motor D direction control
+const int dirPinD2 = 18;  // IN4 for Motor D direction control
 const int pwmPinD = 25;   // ENB pin (controls Motor D speed)
 
 int motorSpeedA = 0;
@@ -54,6 +57,7 @@ int Triangle = 0;
 int Square = 0;
 int Left = 0;
 int Right = 0;
+int Touchpad = 0;
 
 String lift_status = "OFF";
 String prime_status = "OFF";
@@ -73,7 +77,7 @@ double theta = 0;
 
 uint8_t command[3];
 
-uint8_t masterAddress[] = { 0x08, 0x3A, 0xF2, 0xB4, 0x65, 0x80 };  // MAC address of the master
+uint8_t masterAddress[] = { 0x14, 0x2B, 0x2F, 0xEB, 0xC0, 0xBC };  // MAC address of the master
 
 void setup() {
   Serial.begin(115200);
@@ -98,8 +102,6 @@ void setup() {
   // PWM Channels 0 and 1 for Servo Motors
   // PWM channels 2 and 3 for DC Motor speed control
   ledcSetup(2, 5000, 8);     
-  ledcSetup(3, 5000, 8);
-  ledcSetup(2, 5000, 8);
   ledcSetup(3, 5000, 8);
 
   ledcAttachPin(pwmPinA, 2);  
@@ -262,6 +264,7 @@ void loop() {
     vel_C = arr[2];
     vel_D = arr[3];
   }
+
   if (L1) { // If L2 pressed, servo goes to 180
     liftingServo.writeMicroseconds(map(180, 0, 300, 500, 2500));
     lift_status = "ON";
@@ -270,26 +273,27 @@ void loop() {
     lift_status = "OFF";
   }
   if (L2) {
-    intake.write(180);
+    intake.write(50);
     intake_status = "ON";
   } else {
     intake.write(0);
     intake_status = "OFF";
   }
   
-  if (R1) { // If R1 pressed, servo goes to 90
-    primingServo.writeMicroseconds(map(90, 0, 300, 500, 2500));
+  if (R1) { // If R1 pressed, servo goes to 0
+    primingServo.writeMicroseconds(map(30, 0, 300, 500, 2500));
+    delay(200);
     prime_status = "ON";
-  } else { // If R1 released, servo goes to 0
-    primingServo.writeMicroseconds(500);
+  } else { // If R1 released, servo goes to 90
+    primingServo.writeMicroseconds(map(60, 0, 300, 500, 2500));
     prime_status = "OFF";
   }
   static bool leftPressed = false;
   static bool rightPressed = false;
-  if (Cross) flywheel_vel = 10;
-  if (Circle) flywheel_vel = 20;
-  if (Triangle) flywheel_vel = 30;
-  if (Square) flywheel_vel = 40;
+  if (Cross) flywheel_vel = 40;
+  if (Circle) flywheel_vel = 50;
+  if (Triangle) flywheel_vel = 53;
+  if (Square) flywheel_vel = 56;
   if (Left) {
     if (!leftPressed) {
         flywheel_vel -= 1;
@@ -331,10 +335,10 @@ void loop() {
   Serial.print(vel_X2);
   Serial.print("\tLift:  ");
   Serial.print(lift_status);
-  Serial.print("\tIntake:  ");
-  Serial.print(intake_status);
   Serial.print("\tPrime: ");
   Serial.print(prime_status);
+  Serial.print("\tIntake:  ");
+  Serial.print(intake_status);
   Serial.print("\tFlywheel:  ");
   Serial.print(flywheel_status);
   Serial.print("\tflywheel_vel: ");

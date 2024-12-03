@@ -7,10 +7,10 @@
 esp_now_peer_info_t slave1;  
 esp_now_peer_info_t slave2;
 
-uint8_t command[13]; 
-uint8_t rcvdata[2];
-uint8_t slaveAddress1[] = {0xD8, 0x13, 0x2A, 0x2F, 0x1A, 0xDC};
-uint8_t slaveAddress2[] = {0x9C, 0x9C, 0x1F, 0xF7, 0x95, 0xDC}; 
+uint8_t command[14]; 
+//uint8_t rcvdata[2];
+uint8_t slaveAddress1[] = {0x14, 0x2B, 0x2F, 0xEA, 0x07, 0xF8};
+uint8_t slaveAddress2[] = {0x08, 0x3A, 0xF2, 0xB4, 0x65, 0x80}; 
 
 void setup() {
   Serial.begin(115200);
@@ -19,11 +19,14 @@ void setup() {
     Serial.println("Waiting for PS4 controller to connect...");
     delay(1000);
   }
+  Serial.print("Connected! Battery Level: ");
+  Serial.println(PS4.Battery());
+  delay(2000);
 
   WiFi.mode(WIFI_STA);                   
   esp_now_init();                        
   esp_now_register_send_cb(OnDataSent);  
-  esp_now_register_recv_cb(OnDataRecv); 
+  //esp_now_register_recv_cb(OnDataRecv); 
 
   memcpy(slave1.peer_addr, slaveAddress1, 6);
   slave1.channel = CHANNEL;  
@@ -51,14 +54,12 @@ void loop() {
     command[10] = PS4.Square();
     command[11] = PS4.Left();
     command[12] = PS4.Right();
-    
+    command[13] = PS4.Touchpad();
+     
     esp_now_send(slave1.peer_addr, command, sizeof(command)); // Send command array to the slave
-    //esp_now_send(slave2.peer_addr, command, sizeof(command));
-    Serial.print("RPM: ");
-    Serial.print(rcvdata[0]);
-    Serial.print("\tColour: ");
-    Serial.print(rcvdata[1]);
-    Serial.print("\t\tX: ");
+    esp_now_send(slave2.peer_addr, command, sizeof(command));
+  
+    Serial.print("X: ");
     Serial.print(command[0]);
     Serial.print("\tY: ");
     Serial.print(command[1]);
@@ -92,7 +93,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   
 }
 
-void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
+/*void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   rcvdata[0] = data[0];
   rcvdata[1] = data[1];
-}
+}*/
