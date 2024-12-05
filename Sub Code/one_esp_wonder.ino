@@ -5,16 +5,12 @@
 Servo liftingServo;
 Servo primingServo;
 Servo flywheel;
-Servo intake;
 
-// PWM pins for Servo Motors
 const int pwmPinServoPrime = 32;
 const int pwmPinServoLift = 33;
 const int pwmPinflywheel = 15;
-const int pwmPinintake = 22;
 const int irsensor_pin = 35;
-const int ledstrip_pin = 22
-const int num_pixels = 5;
+const int ledstrip_pin = 23;
 
 // Motor Driver 1
 // Motor control pins for Motor A
@@ -24,7 +20,7 @@ const int pwmPinA = 27;  // ENB pin (controls Motor A speed)
 
 // Motor control pins for Motor B
 const int dirPinB1 = 21;  // IN1 for Motor B direction control
-const int dirPinB2 = 19;   // IN2 for Motor B direction control
+const int dirPinB2 = 19;  // IN2 for Motor B direction control
 const int pwmPinB = 26;   // ENA pin (controls Motor B speed)
 
 // Motor Driver 2
@@ -34,9 +30,12 @@ const int dirPinC2 = 14;  // IN2 for Motor C direction control
 const int pwmPinC = 13;   // ENA pin (controls Motor C speed)
 
 // Motor control pins for Motor D
-const int dirPinD1 = 5;  // IN3 for Motor D direction control
+const int dirPinD1 = 5;   // IN3 for Motor D direction control
 const int dirPinD2 = 18;  // IN4 for Motor D direction control
 const int pwmPinD = 25;   // ENB pin (controls Motor D speed)
+
+// Motor Driver 3
+const int pwmPinIntake = 22;
 
 int motorSpeedA = 0;
 int motorSpeedB = 0;
@@ -61,6 +60,7 @@ float base_dist = 0;
 float dist = 0;
 int pucks = 0;
 
+
 String lift_status = "OFF";
 String prime_status = "OFF";
 String flywheel_status = "OFF";
@@ -74,6 +74,7 @@ int vel_B = 0;
 int vel_C = 0;
 int vel_D = 0;
 int flywheel_vel = 0;
+const int num_pixels = 5;
 
 double theta = 0;
 
@@ -85,7 +86,7 @@ void onConnectedController(ControllerPtr ctl) {
   for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
     if (myControllers[i] == nullptr) {
       Serial.printf("CALLBACK: Controller is connected, index=%d\n", i);
-    
+
       ControllerProperties properties = ctl->getProperties();
       Serial.printf("Controller model: %s, VID=0x%04x, PID=0x%04x\n", ctl->getModelName().c_str(), properties.vendor_id, properties.product_id);
       myControllers[i] = ctl;
@@ -94,7 +95,7 @@ void onConnectedController(ControllerPtr ctl) {
     }
   }
   if (!foundEmptySlot) {
-      Serial.println("CALLBACK: Controller connected, but could not found empty slot");
+    Serial.println("CALLBACK: Controller connected, but could not found empty slot");
   }
 }
 
@@ -118,11 +119,11 @@ void onDisconnectedController(ControllerPtr ctl) {
 void displayBinary(int number) {
   ws2812b.clear();  // Clear all LEDs
 
-  for (int bit = 0; bit < NUM_PIXELS; bit++) {
-    if (number & (1 << bit)) {  // Check if the bit is set in 'number'
+  for (int bit = 0; bit < num_pixels; bit++) {
+    if (number & (1 << bit)) {                               // Check if the bit is set in 'number'
       ws2812b.setPixelColor(bit, ws2812b.Color(0, 255, 0));  // Turn ON LED (green)
     } else {
-      ws2812b.setPixelColor(bit, ws2812b.Color(0, 0, 0));    // Turn OFF LED (black/off)
+      ws2812b.setPixelColor(bit, ws2812b.Color(0, 0, 0));  // Turn OFF LED (black/off)
     }
   }
   ws2812b.show();  // Update the LED strip
@@ -130,14 +131,14 @@ void displayBinary(int number) {
 
 void setup() {
   Serial.begin(115200);
-  
+
   ws2812b.begin();  // Initialize WS2812B strip object
 
   primingServo.attach(pwmPinServoPrime, 500, 2500);
   liftingServo.attach(pwmPinServoLift, 500, 2500);
   flywheel.attach(pwmPinflywheel, 1000, 2000);
-  intake.attach(pwmPinintake, 1000, 2000);
-  intake.write(0);
+  pinMode(pwmPinIntake, OUTPUT);
+
   flywheel.write(0);
 
   BP32.setup(&onConnectedController, &onDisconnectedController);
@@ -155,13 +156,13 @@ void setup() {
 
   // PWM Channels 0 and 1 for Servo Motors
   // PWM channels 2 and 3 for DC Motor speed control
-  ledcSetup(2, 5000, 8);     
+  ledcSetup(2, 5000, 8);
   ledcSetup(3, 5000, 8);
 
-  ledcAttachPin(pwmPinA, 2);  
-  ledcAttachPin(pwmPinB, 3); 
+  ledcAttachPin(pwmPinA, 2);
+  ledcAttachPin(pwmPinB, 3);
   ledcAttachPin(pwmPinC, 2);
-  ledcAttachPin(pwmPinD, 3); 
+  ledcAttachPin(pwmPinD, 3);
 }
 
 int* Stop() {
@@ -169,7 +170,7 @@ int* Stop() {
   vel_B = 0;
   vel_C = 0;
   vel_D = 0;
-  static int vel_arr[4] = {vel_A, vel_B, vel_C, vel_D};
+  static int vel_arr[4] = { vel_A, vel_B, vel_C, vel_D };
   // Motor A: Stop
   digitalWrite(dirPinA1, LOW);
   digitalWrite(dirPinA2, LOW);
@@ -193,20 +194,20 @@ int* Stop() {
 }
 
 int MotorA(int x, int y, int x2, double theta) {
-  int resultant_A = y + x + x2; 
+  int resultant_A = y + x + x2;
   if (-1024 <= x2 && x2 < 0) {
     digitalWrite(dirPinA1, LOW);
     digitalWrite(dirPinA2, HIGH);
   } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinA1, HIGH);
     digitalWrite(dirPinA2, LOW);
-  } else if (-45 < theta && theta < 135) { // Forward for -45 < theta < 135
+  } else if (-45 < theta && theta < 135) {  // Forward for -45 < theta < 135
     digitalWrite(dirPinA1, HIGH);
     digitalWrite(dirPinA2, LOW);
-  } else if (-45 > theta && theta > -180 || 180 >= theta && theta > 135) { // Backward for -45 > theta > 135
+  } else if (-45 > theta && theta > -180 || 180 >= theta && theta > 135) {  // Backward for -45 > theta > 135
     digitalWrite(dirPinA1, LOW);
     digitalWrite(dirPinA2, HIGH);
-  } else { // Speed = 0 at -45 and 135
+  } else {  // Speed = 0 at -45 and 135
     digitalWrite(dirPinA1, LOW);
     digitalWrite(dirPinA2, LOW);
   }
@@ -216,20 +217,20 @@ int MotorA(int x, int y, int x2, double theta) {
 
 int MotorB(int x, int y, int x2, double theta) {
   int resultant_B = y - x - x2;
-  
+
   if (-1024 <= x2 && x2 < 0) {
     digitalWrite(dirPinB1, HIGH);
     digitalWrite(dirPinB2, LOW);
   } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinB1, LOW);
     digitalWrite(dirPinB2, HIGH);
-  } else if (-135 > theta && theta > -180 || 180 >= theta && theta > 45) { // Forward for -135 < theta < 45
+  } else if (-135 > theta && theta > -180 || 180 >= theta && theta > 45) {  // Forward for -135 < theta < 45
     digitalWrite(dirPinB1, HIGH);
     digitalWrite(dirPinB2, LOW);
-  } else if (45 > theta && theta > -135) { // Backward for 45 > theta > -135 
+  } else if (45 > theta && theta > -135) {  // Backward for 45 > theta > -135
     digitalWrite(dirPinB1, LOW);
     digitalWrite(dirPinB2, HIGH);
-  } else { // Speed = 0 at 45 and -135
+  } else {  // Speed = 0 at 45 and -135
     digitalWrite(dirPinB1, LOW);
     digitalWrite(dirPinB2, LOW);
   }
@@ -245,13 +246,13 @@ int MotorC(int x, int y, int x2, double theta) {
   } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinC1, LOW);
     digitalWrite(dirPinC2, HIGH);
-  } else if (-45 < theta && theta < 135) { // Forward for -45 < theta < 135
+  } else if (-45 < theta && theta < 135) {  // Forward for -45 < theta < 135
     digitalWrite(dirPinC1, HIGH);
     digitalWrite(dirPinC2, LOW);
-  } else if (-45 > theta && theta > -180 || 180 >= theta && theta > 135) { //Backward for -45 > theta > 135
+  } else if (-45 > theta && theta > -180 || 180 >= theta && theta > 135) {  //Backward for -45 > theta > 135
     digitalWrite(dirPinC1, LOW);
     digitalWrite(dirPinC2, HIGH);
-  } else { // Speed = 0 at -45 and 135
+  } else {  // Speed = 0 at -45 and 135
     digitalWrite(dirPinC1, LOW);
     digitalWrite(dirPinC2, LOW);
   }
@@ -267,13 +268,13 @@ int MotorD(int x, int y, int x2, double theta) {
   } else if (0 < x2 && x2 <= 1024) {
     digitalWrite(dirPinD1, HIGH);
     digitalWrite(dirPinD2, LOW);
-  } else if (-135 > theta && theta > -180 || 180 >= theta && theta > 45) { // Forward for -135 < theta < 45
+  } else if (-135 > theta && theta > -180 || 180 >= theta && theta > 45) {  // Forward for -135 < theta < 45
     digitalWrite(dirPinD1, HIGH);
     digitalWrite(dirPinD2, LOW);
-  } else if (45 > theta && theta > -135) { // Backward for 45 > theta > -135 
+  } else if (45 > theta && theta > -135) {  // Backward for 45 > theta > -135
     digitalWrite(dirPinD1, LOW);
     digitalWrite(dirPinD2, HIGH);
-  } else { // Speed = 0 at 45 and -135
+  } else {  // Speed = 0 at 45 and -135
     digitalWrite(dirPinD1, LOW);
     digitalWrite(dirPinD2, LOW);
   }
@@ -298,20 +299,23 @@ void loop() {
         Triangle = ctl->y();
         Square = ctl->x();
 
-        if (ctl->dpad() & 0x04) Right = 1; else Right = 0;
-        if (ctl->dpad() & 0x08) Left = 1; else Left = 0;
+        if (ctl->dpad() & 0x04) Right = 1;
+        else Right = 0;
+        if (ctl->dpad() & 0x08) Left = 1;
+        else Left = 0;
       } else if (ctl->isMouse()) {
-        if (ctl->buttons() & 0x01) Touchpad = 1; else Touchpad = 0;
+        if (ctl->buttons() & 0x01) Touchpad = 1;
+        else Touchpad = 0;
       }
     }
   }
 
   // Dead zones
-  if (-50 <= RStickX && RStickX <= 50) RStickX = 0;
+  if (-60 <= RStickX && RStickX <= 60) RStickX = 0;
 
-  if (-50 <= RStickY && RStickY <= 50) RStickY = 0;
+  if (-60 <= RStickY && RStickY <= 60) RStickY = 0;
 
-  if (-50 <= vel_X2 && vel_X2 <= 50) vel_X2 = 0;
+  if (-60 <= vel_X2 && vel_X2 <= 60) vel_X2 = 0;
 
   //Theta calculation
   if (RStickX == 0 && RStickY > 0) {
@@ -331,7 +335,7 @@ void loop() {
   }
 
   // Velocity calculations
-  if (0 <= theta && theta <= 90) { // 1st  Quadrant
+  if (0 <= theta && theta <= 90) {  // 1st  Quadrant
     vel_X = map(theta, 0, 90, RStickX, 0);
     vel_Y = map(theta, 0, 90, 0, RStickY);
   } else if (90 < theta && theta <= 180) {  // 2nd Quadrant
@@ -344,41 +348,41 @@ void loop() {
     vel_X = map(theta, -90, 0, 0, RStickX);
     vel_Y = map(theta, -90, 0, RStickY, 0);
   }
-  
-  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0)) { // detect joystick input
+
+  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0)) {  // detect joystick input
     vel_A = MotorA(vel_X, vel_Y, vel_X2, theta);
     vel_B = MotorB(vel_X, vel_Y, vel_X2, theta);
     vel_C = MotorC(vel_X, vel_Y, vel_X2, theta);
     vel_D = MotorD(vel_X, vel_Y, vel_X2, theta);
-    
-  } else { // Stop when controller has no input
-    int *arr = Stop();
+
+  } else {  // Stop when controller has no input
+    int* arr = Stop();
     vel_A = arr[0];
     vel_B = arr[1];
     vel_C = arr[2];
     vel_D = arr[3];
   }
 
-  if (L1) { // If L2 pressed, servo goes to 180
+  if (L1) {  // If L2 pressed, servo goes to 180
     liftingServo.writeMicroseconds(map(180, 0, 300, 500, 2500));
     lift_status = "ON";
-  } else { // If L2 released, servo goes to 0
+  } else {  // If L2 released, servo goes to 0
     liftingServo.writeMicroseconds(500);
     lift_status = "OFF";
   }
   if (L2) {
-    intake.write(50);
+    digitalWrite(pwmPinIntake, HIGH);
     intake_status = "ON";
   } else {
-    intake.write(0);
+    digitalWrite(pwmPinIntake, LOW);
     intake_status = "OFF";
   }
-  
-  if (R1) { // If R1 pressed, servo goes to 30
+
+  if (R1) {  // If R1 pressed, servo goes to 30
     primingServo.writeMicroseconds(map(30, 0, 300, 500, 2500));
     delay(200);
     prime_status = "ON";
-  } else { // If R1 released, servo goes to 60
+  } else {  // If R1 released, servo goes to 60
     primingServo.writeMicroseconds(map(60, 0, 300, 500, 2500));
     prime_status = "OFF";
   }
@@ -390,17 +394,17 @@ void loop() {
   if (Square) flywheel_vel = 56;
   if (Left) {
     if (!leftPressed) {
-        flywheel_vel -= 1;
-        leftPressed = true;
+      flywheel_vel -= 1;
+      leftPressed = true;
     }
   } else leftPressed = false;
-  
+
   if (Right) {
     if (!rightPressed) {
-        flywheel_vel += 1;
-        rightPressed = true; 
+      flywheel_vel += 1;
+      rightPressed = true;
     }
-  } else rightPressed = false; 
+  } else rightPressed = false;
 
   if (R2) {
     flywheel.write(flywheel_vel);
@@ -411,20 +415,20 @@ void loop() {
   }
 
   if (Touchpad) {
-    int rawValue = analogRead(irsensor_pin); // Read the raw ADC value (0-4095)
-    float voltage = (rawValue / 4095.0) * 5.0; 
-    
+    int rawValue = analogRead(irsensor_pin);  // Read the raw ADC value (0-4095)
+    float voltage = (rawValue / 4095.0) * 5.0;
+
     // Convert voltage to distance (approximation based on the sensor's datasheet)
-    dist = 27.86 / (voltage - 0.42); // Calibration formula
-    
+    dist = 27.86 / (voltage - 0.42);  // Calibration formula
+
     base_dist = 16.40;
     pucks = round((base_dist - dist) / 0.445);
   }
   static bool R1Pressed = false;
   if (R1 && R2) {
     if (!R1Pressed && pucks > 0) {
-        pucks--;
-        R1Pressed = true;
+      pucks--;
+      R1Pressed = true;
     }
   } else R1Pressed = false;
   displayBinary(pucks);
@@ -435,7 +439,7 @@ void loop() {
   Serial.print(RStickY);
   Serial.print("\ttheta: ");
   Serial.print(theta);
-  
+
   Serial.print("\tvel_A: ");
   Serial.print(vel_A);
   Serial.print("\tvel_B: ");
