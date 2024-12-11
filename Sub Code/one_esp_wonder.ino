@@ -60,7 +60,6 @@ float base_dist = 0;
 float dist = 0;
 int pucks = 0;
 
-
 String lift_status = "OFF";
 String prime_status = "OFF";
 String flywheel_status = "OFF";
@@ -363,11 +362,11 @@ void loop() {
     vel_D = arr[3];
   }
 
-  if (L1) {  // If L2 pressed, servo goes to 180
-    liftingServo.writeMicroseconds(map(180, 0, 300, 500, 2500));
+  if (L1) {  // If L1 pressed, servo goes to 180
+    liftingServo.writeMicroseconds(map(78, 0, 300, 500, 2500));
     lift_status = "ON";
-  } else {  // If L2 released, servo goes to 0
-    liftingServo.writeMicroseconds(500);
+  } else {  // If L1 released, servo goes to 0
+    liftingServo.writeMicroseconds(map(0, 0, 300, 500, 2500));
     lift_status = "OFF";
   }
   if (L2) {
@@ -379,19 +378,19 @@ void loop() {
   }
 
   if (R1) {  // If R1 pressed, servo goes to 30
-    primingServo.writeMicroseconds(map(30, 0, 300, 500, 2500));
-    delay(200);
+    primingServo.writeMicroseconds(map(60, 0, 300, 500, 2500));
+    delay(300);
     prime_status = "ON";
   } else {  // If R1 released, servo goes to 60
-    primingServo.writeMicroseconds(map(60, 0, 300, 500, 2500));
+    primingServo.writeMicroseconds(map(5, 0, 300, 500, 2500));
     prime_status = "OFF";
   }
   static bool leftPressed = false;
   static bool rightPressed = false;
-  if (Cross) flywheel_vel = 40;
-  if (Circle) flywheel_vel = 50;
-  if (Triangle) flywheel_vel = 53;
-  if (Square) flywheel_vel = 56;
+  if (Cross) flywheel_vel = 16;
+  if (Circle) flywheel_vel = 18;
+  if (Triangle) flywheel_vel = 21;
+  if (Square) flywheel_vel = 24;
   if (Left) {
     if (!leftPressed) {
       flywheel_vel -= 1;
@@ -414,16 +413,27 @@ void loop() {
     flywheel_status = "OFF";
   }
 
-  if (Touchpad) {
-    int rawValue = analogRead(irsensor_pin);  // Read the raw ADC value (0-4095)
-    float voltage = (rawValue / 4095.0) * 5.0;
+  float avgDistance = 0;
+  if (L2) {
+    const int numReadings = 10;
+    float totalDistance = 0.0;     
+    base_dist = 14.6;      
+    for (int i = 0; i < numReadings; i++) {
+      int rawValue = analogRead(irsensor_pin);  // Read the raw ADC value (0-4095)
+      float voltage = (rawValue / 4095.0) * 5.0;
 
-    // Convert voltage to distance (approximation based on the sensor's datasheet)
-    dist = 27.86 / (voltage - 0.42);  // Calibration formula
+      // Convert voltage to distance (approximation based on the sensor's datasheet)
+      dist = 27.86 / (voltage - 0.42);  // Calibration formula
+      totalDistance += dist;
+    }
 
-    base_dist = 16.40;
-    pucks = round((base_dist - dist) / 0.445);
+    avgDistance = totalDistance / numReadings;
+    pucks = round((base_dist - avgDistance) / 0.35);
+    if (pucks == 4) pucks++;
+
+    delay(100);
   }
+
   static bool R1Pressed = false;
   if (R1 && R2) {
     if (!R1Pressed && pucks > 0) {
@@ -464,6 +474,8 @@ void loop() {
   Serial.print(base_dist);
   Serial.print("\tDistance: ");
   Serial.print(dist, 2);
+  Serial.print("\tavgDistance: ");
+  Serial.print(avgDistance, 2);
   Serial.print(" cm\tPucks: ");
   Serial.print(pucks);
   Serial.print("\tTouchpad: ");
