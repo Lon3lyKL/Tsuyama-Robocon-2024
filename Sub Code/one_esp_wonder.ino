@@ -55,10 +55,7 @@ int Square = 0;
 int Left = 0;
 int Right = 0;
 int Touchpad = 0;
-
-float base_dist = 0;
-float dist = 0;
-int pucks = 0;
+int speed_led = 0;
 
 String lift_status = "OFF";
 String prime_status = "OFF";
@@ -210,6 +207,9 @@ int MotorA(int x, int y, int x2, double theta) {
     digitalWrite(dirPinA1, LOW);
     digitalWrite(dirPinA2, LOW);
   }
+  if (Touchpad) {
+    resultant_A = 170;
+  }
   ledcWrite(2, abs(resultant_A));
   return resultant_A;
 }
@@ -233,6 +233,9 @@ int MotorB(int x, int y, int x2, double theta) {
     digitalWrite(dirPinB1, LOW);
     digitalWrite(dirPinB2, LOW);
   }
+  if (Touchpad) {
+    resultant_B = 170;
+  }
   ledcWrite(3, abs(resultant_B));
   return resultant_B;
 }
@@ -254,6 +257,9 @@ int MotorC(int x, int y, int x2, double theta) {
   } else {  // Speed = 0 at -45 and 135
     digitalWrite(dirPinC1, LOW);
     digitalWrite(dirPinC2, LOW);
+  }
+  if (Touchpad) {
+    resultant_C = 200;
   }
   ledcWrite(2, abs(resultant_C));
   return resultant_C;
@@ -277,6 +283,9 @@ int MotorD(int x, int y, int x2, double theta) {
     digitalWrite(dirPinD1, LOW);
     digitalWrite(dirPinD2, LOW);
   }
+  if (Touchpad) {
+    resultant_D = 170;
+  }
   ledcWrite(3, abs(resultant_D));
   return resultant_D;
 }
@@ -297,7 +306,6 @@ void loop() {
         Circle = ctl->b();
         Triangle = ctl->y();
         Square = ctl->x();
-
         if (ctl->dpad() & 0x04) Right = 1;
         else Right = 0;
         if (ctl->dpad() & 0x08) Left = 1;
@@ -310,11 +318,9 @@ void loop() {
   }
 
   // Dead zones
-  if (-60 <= RStickX && RStickX <= 60) RStickX = 0;
-
-  if (-60 <= RStickY && RStickY <= 60) RStickY = 0;
-
-  if (-60 <= vel_X2 && vel_X2 <= 60) vel_X2 = 0;
+  if (-70 <= RStickX && RStickX <= 70) RStickX = 0;
+  if (-70 <= RStickY && RStickY <= 70) RStickY = 0;
+  if (-70 <= vel_X2 && vel_X2 <= 70) vel_X2 = 0;
 
   //Theta calculation
   if (RStickX == 0 && RStickY > 0) {
@@ -332,7 +338,13 @@ void loop() {
       theta -= 180;  // Third quadrant (X negative, Y negative)
     }
   }
-
+  if (Touchpad) {
+    if ((135 <= theta && theta <= 180) || (-180 < theta && theta <= -135)) theta = 180; // Left
+    else if ((0 <= theta && theta <= 45) || (-45 < theta && theta <= 0)) theta = 0; // Right
+    else if ((45 < theta && theta < 135)) theta = 90; // Up
+    else if ((-135 < theta && theta < -45)) theta = -90; // Down
+  } 
+  
   // Velocity calculations
   if (0 <= theta && theta <= 90) {  // 1st  Quadrant
     vel_X = map(theta, 0, 90, RStickX, 0);
@@ -348,7 +360,7 @@ void loop() {
     vel_Y = map(theta, -90, 0, RStickY, 0);
   }
 
-  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0)) {  // detect joystick input
+  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0 && Left == 0 && Right == 0)) {  // detect joystick input
     vel_A = MotorA(vel_X, vel_Y, vel_X2, theta);
     vel_B = MotorB(vel_X, vel_Y, vel_X2, theta);
     vel_C = MotorC(vel_X, vel_Y, vel_X2, theta);
@@ -362,7 +374,7 @@ void loop() {
     vel_D = arr[3];
   }
 
-  if (L1) {  // If L1 pressed, servo goes to 180
+  if (L1) {  // If L1 pressed, servo goes to 78
     liftingServo.writeMicroseconds(map(78, 0, 300, 500, 2500));
     lift_status = "ON";
   } else {  // If L1 released, servo goes to 0
@@ -377,30 +389,43 @@ void loop() {
     intake_status = "OFF";
   }
 
-  if (R1) {  // If R1 pressed, servo goes to 30
+  if (R1) {  // If R1 pressed, servo goes to 60
     primingServo.writeMicroseconds(map(60, 0, 300, 500, 2500));
-    delay(300);
+    delay(170);
     prime_status = "ON";
-  } else {  // If R1 released, servo goes to 60
-    primingServo.writeMicroseconds(map(5, 0, 300, 500, 2500));
+  } else {  // If R1 released, servo goes to 30
+    primingServo.writeMicroseconds(map(30, 0, 300, 500, 2500));
     prime_status = "OFF";
   }
   static bool leftPressed = false;
   static bool rightPressed = false;
-  if (Cross) flywheel_vel = 16;
-  if (Circle) flywheel_vel = 18;
-  if (Triangle) flywheel_vel = 21;
-  if (Square) flywheel_vel = 24;
+
+  if (Cross) {
+    flywheel_vel = 16;
+    speed_led = 1;
+  }
+  if (Circle) {
+    flywheel_vel = 18;
+    speed_led = 3;
+  }
+  if (Triangle) {
+    flywheel_vel = 21;
+    speed_led = 7;
+  }
+  if (Square) {
+    flywheel_vel = 24;
+    speed_led = 15;
+  }
   if (Left) {
     if (!leftPressed) {
-      flywheel_vel -= 1;
+      flywheel_vel -= 2;
       leftPressed = true;
     }
   } else leftPressed = false;
 
   if (Right) {
     if (!rightPressed) {
-      flywheel_vel += 1;
+      flywheel_vel += 2;
       rightPressed = true;
     }
   } else rightPressed = false;
@@ -412,36 +437,7 @@ void loop() {
     flywheel.write(0);
     flywheel_status = "OFF";
   }
-
-  float avgDistance = 0;
-  if (L2) {
-    const int numReadings = 10;
-    float totalDistance = 0.0;     
-    base_dist = 14.6;      
-    for (int i = 0; i < numReadings; i++) {
-      int rawValue = analogRead(irsensor_pin);  // Read the raw ADC value (0-4095)
-      float voltage = (rawValue / 4095.0) * 5.0;
-
-      // Convert voltage to distance (approximation based on the sensor's datasheet)
-      dist = 27.86 / (voltage - 0.42);  // Calibration formula
-      totalDistance += dist;
-    }
-
-    avgDistance = totalDistance / numReadings;
-    pucks = round((base_dist - avgDistance) / 0.35);
-    if (pucks == 4) pucks++;
-
-    delay(100);
-  }
-
-  static bool R1Pressed = false;
-  if (R1 && R2) {
-    if (!R1Pressed && pucks > 0) {
-      pucks--;
-      R1Pressed = true;
-    }
-  } else R1Pressed = false;
-  displayBinary(pucks);
+  displayBinary(speed_led);
 
   Serial.print("X: ");
   Serial.print(RStickX);
@@ -449,7 +445,6 @@ void loop() {
   Serial.print(RStickY);
   Serial.print("\ttheta: ");
   Serial.print(theta);
-
   Serial.print("\tvel_A: ");
   Serial.print(vel_A);
   Serial.print("\tvel_B: ");
@@ -470,14 +465,6 @@ void loop() {
   Serial.print(flywheel_status);
   Serial.print("\tflywheel_vel: ");
   Serial.print(flywheel_vel);
-  Serial.print("\tBase Distance: ");
-  Serial.print(base_dist);
-  Serial.print("\tDistance: ");
-  Serial.print(dist, 2);
-  Serial.print("\tavgDistance: ");
-  Serial.print(avgDistance, 2);
-  Serial.print(" cm\tPucks: ");
-  Serial.print(pucks);
   Serial.print("\tTouchpad: ");
   Serial.println(Touchpad);
 }
