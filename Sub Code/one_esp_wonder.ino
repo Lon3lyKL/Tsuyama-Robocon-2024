@@ -360,12 +360,11 @@ void loop() {
     vel_Y = map(theta, -90, 0, RStickY, 0);
   }
 
-  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0 && Left == 0 && Right == 0)) {  // detect joystick input
+  if (!(RStickX == 0 && RStickY == 0 && vel_X2 == 0)) {  // detect joystick input
     vel_A = MotorA(vel_X, vel_Y, vel_X2, theta);
     vel_B = MotorB(vel_X, vel_Y, vel_X2, theta);
     vel_C = MotorC(vel_X, vel_Y, vel_X2, theta);
     vel_D = MotorD(vel_X, vel_Y, vel_X2, theta);
-
   } else {  // Stop when controller has no input
     int* arr = Stop();
     vel_A = arr[0];
